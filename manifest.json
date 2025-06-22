@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "WebP & GIF Page Recorder",
+  "version": "1.0",
+  "description": "Record the active tab and download as animated WebP or GIF",  "permissions": [
+    "tabCapture",
+    "activeTab",
+    "storage",
+    "downloads",
+    "scripting",
+    "offscreen",
+    "notifications"
+  ],
+  "action": {
+    "default_title": "Click to start/stop recording"
+  },  "background": {
+    "service_worker": "background-display.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["*.wasm", "*.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}

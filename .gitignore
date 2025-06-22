@@ -1,0 +1,20 @@
+# Backup directories (local reference only)
+backup/
+
+# Chrome extension temporary files
+*.crx
+*.pem
+
+# Development files
+.DS_Store
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
