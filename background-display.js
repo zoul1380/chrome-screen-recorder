@@ -12,7 +12,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-async function startRecording(tab) {
+async function startRecording(tab, watermarkSettings = null) {
   try {
     // Check if tab is recordable
     if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
@@ -23,10 +23,19 @@ async function startRecording(tab) {
     // Create offscreen document
     await ensureOffscreenDocument();
 
+    // Get image data if using image watermark
+    let imageData = null;
+    if (watermarkSettings && watermarkSettings.enabled && watermarkSettings.type === 'image') {
+      const result = await chrome.storage.local.get(['watermarkImageData']);
+      imageData = result.watermarkImageData;
+    }
+
     // Send message to offscreen to start getDisplayMedia
     const result = await chrome.runtime.sendMessage({
       target: 'offscreen',
-      action: 'start-display-media'
+      action: 'start-display-media',
+      watermarkSettings: watermarkSettings,
+      watermarkImageData: imageData
     });
 
     if (result.success) {
@@ -87,11 +96,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ isRecording: isRecording, success: true });
     return true;
   }
-  
-  if (request.action === 'start-recording') {
+    if (request.action === 'start-recording') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs[0]) {
-        await startRecording(tabs[0]);
+        await startRecording(tabs[0], request.watermarkSettings);
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: "No active tab found" });

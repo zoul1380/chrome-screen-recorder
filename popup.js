@@ -6,13 +6,113 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusDiv = document.getElementById('status');
     const formatRadios = document.querySelectorAll('input[name="format"]');
     
+    // Watermark elements
+    const watermarkEnabled = document.getElementById('watermarkEnabled');
+    const watermarkControls = document.getElementById('watermarkControls');
+    const watermarkType = document.getElementById('watermarkType');
+    const textWatermarkSettings = document.getElementById('textWatermarkSettings');
+    const imageWatermarkSettings = document.getElementById('imageWatermarkSettings');
+    
     // Check initial status when popup opens
     checkRecordingStatus();
+    loadWatermarkSettings();
     
-    // Get selected format
+    // Watermark controls toggle
+    watermarkEnabled.addEventListener('change', function() {
+        watermarkControls.style.display = this.checked ? 'block' : 'none';
+        saveWatermarkSettings();
+    });
+    
+    // Watermark type change
+    watermarkType.addEventListener('change', function() {
+        textWatermarkSettings.style.display = this.value === 'text' ? 'block' : 'none';
+        imageWatermarkSettings.style.display = this.value === 'image' ? 'block' : 'none';
+        saveWatermarkSettings();
+    });
+    
+    // Save watermark settings on any change
+    ['watermarkText', 'watermarkColor', 'watermarkOpacity', 'imageOpacity', 'watermarkPosition'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', saveWatermarkSettings);
+            element.addEventListener('input', saveWatermarkSettings);
+        }
+    });
+    
+    // Handle image upload
+    document.getElementById('watermarkImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = e.target.result;
+                chrome.storage.local.set({ watermarkImageData: imageData });
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+      // Get selected format
     function getSelectedFormat() {
         const selected = document.querySelector('input[name="format"]:checked');
         return selected ? selected.value : 'webm';
+    }
+    
+    // Get watermark settings
+    function getWatermarkSettings() {
+        if (!watermarkEnabled.checked) {
+            return { enabled: false };
+        }
+        
+        const settings = {
+            enabled: true,
+            type: watermarkType.value,
+            position: document.getElementById('watermarkPosition').value
+        };
+        
+        if (watermarkType.value === 'text') {
+            settings.text = document.getElementById('watermarkText').value || 'Screen Recording';
+            settings.color = document.getElementById('watermarkColor').value;
+            settings.opacity = parseFloat(document.getElementById('watermarkOpacity').value);
+        } else if (watermarkType.value === 'image') {
+            settings.opacity = parseFloat(document.getElementById('imageOpacity').value);
+        }
+        
+        return settings;
+    }
+    
+    // Save watermark settings
+    function saveWatermarkSettings() {
+        const settings = getWatermarkSettings();
+        chrome.storage.local.set({ watermarkSettings: settings });
+    }
+    
+    // Load watermark settings
+    async function loadWatermarkSettings() {
+        try {
+            const result = await chrome.storage.local.get(['watermarkSettings', 'watermarkImageData']);
+            const settings = result.watermarkSettings || { enabled: false };
+            
+            watermarkEnabled.checked = settings.enabled || false;
+            watermarkControls.style.display = settings.enabled ? 'block' : 'none';
+            
+            if (settings.type) {
+                watermarkType.value = settings.type;
+                textWatermarkSettings.style.display = settings.type === 'text' ? 'block' : 'none';
+                imageWatermarkSettings.style.display = settings.type === 'image' ? 'block' : 'none';
+            }
+            
+            if (settings.text) document.getElementById('watermarkText').value = settings.text;
+            if (settings.color) document.getElementById('watermarkColor').value = settings.color;
+            if (settings.opacity) document.getElementById('watermarkOpacity').value = settings.opacity;
+            if (settings.opacity) document.getElementById('imageOpacity').value = settings.opacity;
+            if (settings.position) document.getElementById('watermarkPosition').value = settings.position;
+            
+        } catch (error) {
+            chrome.runtime.sendMessage({
+                action: 'debug-info',
+                info: `Error loading watermark settings: ${error.message}`
+            });
+        }
     }
     
     // Update status display
@@ -57,15 +157,16 @@ document.addEventListener('DOMContentLoaded', function() {
             updateButtons(false);
         }
     }
-    
-    // Start recording
+      // Start recording
     startBtn.addEventListener('click', async function() {
         try {
             updateStatus('Starting recording...', 'processing');
-
+            
+            const watermarkSettings = getWatermarkSettings();
             
             const response = await chrome.runtime.sendMessage({
-                action: 'start-recording'
+                action: 'start-recording',
+                watermarkSettings: watermarkSettings
             });
             
 

@@ -117,10 +117,41 @@
             background: rgba(244, 67, 54, 0.2);
             border: 1px solid rgba(244, 67, 54, 0.3);
         }
-        
-        .status.processing {
+          .status.processing {
             background: rgba(255, 193, 7, 0.2);
             border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .watermark-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        
+        .watermark-section label {
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .watermark-section input[type="text"] {
+            box-sizing: border-box;
+        }
+        
+        .watermark-section input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .watermark-section select {
+            box-sizing: border-box;
+        }
+        
+        .watermark-section select option {
+            background: #4a4a4a;
+            color: white;
         }
     </style>
 </head>
@@ -135,8 +166,7 @@
                 3. <strong>ALLOW screen recording</strong> when prompted<br>
                 4. Click "Stop Recording" when done
             </p>
-        </div>
-          <div class="format-selector">
+        </div>        <div class="format-selector">
             <label>Output Format:</label>
             <div class="radio-group">
                 <div class="radio-option">
@@ -154,6 +184,44 @@
             </div>
             <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
                 *WebP/GIF will download as WebM with conversion instructions
+            </div>
+        </div>
+        
+        <div class="watermark-section">
+            <label>
+                <input type="checkbox" id="watermarkEnabled" style="margin-right: 8px;">
+                💧 Add Watermark
+            </label>
+            
+            <div id="watermarkControls" style="display: none; margin-top: 10px;">
+                <div class="watermark-type-selector">
+                    <select id="watermarkType" style="width: 100%; padding: 6px; margin-bottom: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                        <option value="text">Text Watermark</option>
+                        <option value="image">Image Watermark</option>
+                        <option value="timestamp">Timestamp</option>
+                    </select>
+                </div>
+                
+                <div id="textWatermarkSettings">
+                    <input type="text" id="watermarkText" placeholder="Enter watermark text" style="width: 100%; padding: 6px; margin-bottom: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                    <input type="color" id="watermarkColor" value="#ffffff" style="width: 40px; height: 30px; margin-right: 8px; border: none; border-radius: 4px;">
+                    <input type="range" id="watermarkOpacity" min="0.1" max="1" step="0.1" value="0.8" style="width: 100px;">
+                </div>
+                
+                <div id="imageWatermarkSettings" style="display: none;">
+                    <input type="file" id="watermarkImage" accept="image/*" style="width: 100%; padding: 4px; margin-bottom: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                    <input type="range" id="imageOpacity" min="0.1" max="1" step="0.1" value="0.8" style="width: 100%;">
+                </div>
+                
+                <div class="position-selector">
+                    <select id="watermarkPosition" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white;">
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right" selected>Top Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="center">Center</option>
+                    </select>
+                </div>
             </div>
         </div>
         
