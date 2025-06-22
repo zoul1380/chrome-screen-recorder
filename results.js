@@ -39,21 +39,16 @@ function displayRecording() {
         video.addEventListener('loadedmetadata', function() {
             const duration = video.duration;
             if (duration && !isNaN(duration) && isFinite(duration)) {
-                durationInfo.textContent = formatDuration(duration);
-            } else {
-                // Duration is invalid (Infinity/NaN) - try to fix WebM
-                durationInfo.textContent = 'Calculating...';
-                fixWebMDuration(video, recordingData)
-                    .then(fixedData => {
-                        if (fixedData) {
-                            recordingData = fixedData;
-                            video.src = fixedData.blobUrl;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Duration fix failed:', error);
-                        durationInfo.textContent = 'Unknown';
-                    });
+                durationInfo.textContent = formatDuration(duration);            } else {
+                // Duration is invalid (Infinity/NaN) - show recording complete
+                console.log('WebM has invalid duration, using fallback display');
+                durationInfo.textContent = 'Recording Complete';
+                
+                // Try to estimate duration from file size (optional)
+                const estimatedDuration = estimateDurationFromFileSize(recordingData.size);
+                if (estimatedDuration) {
+                    durationInfo.textContent = `~${formatDuration(estimatedDuration)} (estimated)`;
+                }
             }
         });
         
@@ -211,20 +206,28 @@ function shareRecording() {
     alert('Sharing functionality coming soon!');
 }
 
-// Function to fix WebM duration metadata
+// Function to fix WebM duration metadata (enhanced with better error handling)
 async function fixWebMDuration(videoElement, originalData) {
     return new Promise(async (resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(new Error('WebM fix timed out after 10 seconds'));
+        }, 10000);
+        
         try {
             console.log('Attempting to fix WebM duration metadata...');
             
             // Fetch the original blob
+            console.log('Fetching original blob...');
             const response = await fetch(originalData.blobUrl);
             const webmBlob = await response.blob();
+            console.log('Original blob size:', webmBlob.size);
             
             // Try to fix using canvas re-encoding
+            console.log('Starting re-encoding...');
             const fixedBlob = await reencodeWebMWithDuration(webmBlob);
             
             if (fixedBlob) {
+                console.log('Re-encoding successful, testing fixed video...');
                 // Create new blob URL
                 const newBlobUrl = URL.createObjectURL(fixedBlob);
                 
@@ -233,7 +236,13 @@ async function fixWebMDuration(videoElement, originalData) {
                 testVideo.muted = true;
                 testVideo.preload = 'metadata';
                 
+                const testTimeout = setTimeout(() => {
+                    URL.revokeObjectURL(newBlobUrl);
+                    reject(new Error('Fixed video test timed out'));
+                }, 5000);
+                
                 testVideo.addEventListener('loadedmetadata', () => {
+                    clearTimeout(testTimeout);
                     const duration = testVideo.duration;
                     console.log('Fixed video duration:', duration);
                     
@@ -243,6 +252,8 @@ async function fixWebMDuration(videoElement, originalData) {
                         
                         // Clean up old URL
                         URL.revokeObjectURL(originalData.blobUrl);
+                        
+                        clearTimeout(timeoutId);
                         
                         // Return fixed data
                         resolve({
@@ -257,28 +268,35 @@ async function fixWebMDuration(videoElement, originalData) {
                     }
                 });
                 
-                testVideo.addEventListener('error', () => {
+                testVideo.addEventListener('error', (e) => {
+                    clearTimeout(testTimeout);
                     URL.revokeObjectURL(newBlobUrl);
-                    reject(new Error('Fixed video failed to load'));
+                    reject(new Error(`Fixed video failed to load: ${e.message}`));
                 });
                 
                 testVideo.src = newBlobUrl;
                 
             } else {
-                reject(new Error('Re-encoding failed'));
+                reject(new Error('Re-encoding returned null'));
             }
             
         } catch (error) {
+            clearTimeout(timeoutId);
             console.error('WebM duration fix error:', error);
             reject(error);
         }
     });
 }
 
-// Re-encode WebM using canvas to fix duration metadata
+// Re-encode WebM using canvas to fix duration metadata (enhanced error handling)
 async function reencodeWebMWithDuration(originalBlob) {
     return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Re-encoding timed out after 20 seconds'));
+        }, 20000);
+        
         try {
+            console.log('Setting up re-encoding elements...');
             const video = document.createElement('video');
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -291,47 +309,69 @@ async function reencodeWebMWithDuration(originalBlob) {
             let recordedChunks = [];
             let startTime;
             let frameCount = 0;
+            let hasStarted = false;
             
             video.addEventListener('loadedmetadata', () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                console.log(`Re-encoding video: ${canvas.width}x${canvas.height}`);
-                
-                // Create canvas stream
-                const canvasStream = canvas.captureStream(30);
-                
-                // Create MediaRecorder with proper settings
-                mediaRecorder = new MediaRecorder(canvasStream, {
-                    mimeType: 'video/webm;codecs=vp8',
-                    videoBitsPerSecond: 2500000
-                });
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0) {
-                        recordedChunks.push(event.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const recodedBlob = new Blob(recordedChunks, { 
-                        type: 'video/webm;codecs=vp8' 
+                try {
+                    console.log('Video metadata loaded, setting up canvas...');
+                    canvas.width = video.videoWidth || 1920;
+                    canvas.height = video.videoHeight || 1080;
+                    
+                    console.log(`Re-encoding video: ${canvas.width}x${canvas.height}, duration: ${video.duration}`);
+                    
+                    // Create canvas stream
+                    const canvasStream = canvas.captureStream(30);
+                    
+                    // Create MediaRecorder with proper settings
+                    mediaRecorder = new MediaRecorder(canvasStream, {
+                        mimeType: 'video/webm;codecs=vp8',
+                        videoBitsPerSecond: 2500000
                     });
-                    console.log(`Re-encoding complete: ${recordedChunks.length} chunks, ${(recodedBlob.size/1024/1024).toFixed(2)} MB`);
-                    resolve(recodedBlob);
-                };
-                
-                // Start recording
-                startTime = Date.now();
-                mediaRecorder.start();
-                
-                // Start video playback
-                video.currentTime = 0;
-                video.play();
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data && event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                            console.log(`Recorded chunk ${recordedChunks.length}: ${event.data.size} bytes`);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        clearTimeout(timeoutId);
+                        const recodedBlob = new Blob(recordedChunks, { 
+                            type: 'video/webm;codecs=vp8' 
+                        });
+                        console.log(`Re-encoding complete: ${recordedChunks.length} chunks, ${(recodedBlob.size/1024/1024).toFixed(2)} MB`);
+                        resolve(recodedBlob);
+                    };
+                    
+                    mediaRecorder.onerror = (error) => {
+                        clearTimeout(timeoutId);
+                        console.error('MediaRecorder error:', error);
+                        reject(new Error(`MediaRecorder error: ${error.message}`));
+                    };
+                    
+                    // Start recording
+                    startTime = Date.now();
+                    mediaRecorder.start(1000); // Request data every second
+                    hasStarted = true;
+                    
+                    // Start video playback
+                    video.currentTime = 0;
+                    console.log('Starting video playback...');
+                    video.play().catch(err => {
+                        console.error('Video play failed:', err);
+                        reject(new Error(`Video play failed: ${err.message}`));
+                    });
+                    
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    console.error('Canvas setup error:', error);
+                    reject(error);
+                }
             });
             
             video.addEventListener('timeupdate', () => {
-                if (video.ended) {
+                if (video.ended || video.currentTime >= (video.duration || 30)) {
                     console.log(`Video ended after ${frameCount} frames`);
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
@@ -340,35 +380,60 @@ async function reencodeWebMWithDuration(originalBlob) {
                 }
                 
                 // Draw current frame to canvas
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                frameCount++;
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    frameCount++;
+                }
             });
             
             video.addEventListener('ended', () => {
+                console.log('Video ended event fired');
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
             });
             
-            video.addEventListener('error', () => {
-                reject(new Error('Original video failed to load for re-encoding'));
+            video.addEventListener('error', (e) => {
+                clearTimeout(timeoutId);
+                console.error('Original video error:', e, video.error);
+                reject(new Error(`Original video failed to load: ${video.error?.message || 'Unknown error'}`));
             });
             
             // Load the original video
+            console.log('Loading original video blob...');
             video.src = URL.createObjectURL(originalBlob);
             
-            // Timeout after 30 seconds
+            // Emergency stop after some time with data
             setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                if (hasStarted && recordedChunks.length > 0 && mediaRecorder && mediaRecorder.state === 'recording') {
+                    console.log('Emergency stop - sufficient data recorded');
                     mediaRecorder.stop();
                 }
-                reject(new Error('Re-encoding timed out'));
-            }, 30000);
+            }, 15000);
             
         } catch (error) {
+            clearTimeout(timeoutId);
+            console.error('Re-encoding setup error:', error);
             reject(error);
         }
     });
+}
+
+// Estimate duration based on file size (rough approximation)
+function estimateDurationFromFileSize(fileSize) {
+    if (!fileSize || fileSize < 1000) return null;
+    
+    // Rough estimation: WebM recordings are typically 1-3 MB per minute
+    // This is very approximate but better than showing nothing
+    const avgBytesPerSecond = 50000; // ~3 MB per minute
+    const estimatedSeconds = Math.round(fileSize / avgBytesPerSecond);
+    
+    // Only show estimate if it seems reasonable (between 1 second and 1 hour)
+    if (estimatedSeconds >= 1 && estimatedSeconds <= 3600) {
+        return estimatedSeconds;
+    }
+    
+    return null;
 }
 
 // Load recording data when page loads
