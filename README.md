@@ -49,6 +49,15 @@ The **WebP & GIF Page Recorder** is a Chrome extension that enables users to rec
 - 💾 **Reliable Downloads**: Handles large video files (2MB+) without corruption
 - 🎛️ **Simple Interface**: Clean popup UI with start/stop controls
 - 🔄 **Background Processing**: All recording handled in service worker for optimal performance
+- 💧 **Watermark Support**: Add custom text, images, or timestamps to recordings
+
+### Watermark Features
+- **Text Watermarks**: Add custom text with adjustable color and opacity
+- **Timestamp Support**: Automatically include current date/time in watermark
+- **6 Position Options**: Top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
+- **Post-Processing**: Watermarks are added after recording for maximum compatibility
+- **Persistent Settings**: Watermark preferences are saved across browser sessions
+- **Reliable Output**: Fallback to original video if watermark processing fails
 
 ### Technical Features
 - **Manifest V3 Compliance**: Modern Chrome extension architecture
@@ -104,6 +113,40 @@ cd screenrecord
    - Click the extension icon again
    - Click "Stop Recording"
    - The video file will automatically download
+
+### Watermark Usage
+
+#### Setting Up Watermarks
+1. **Enable Watermarks**
+   - Click the extension icon to open the popup
+   - Check the "💧 Add Watermark" checkbox
+   - Watermark controls will appear below
+
+2. **Configure Watermark Settings**
+   - **Text**: Enter your custom watermark text
+   - **Position**: Choose from 6 positions (top-left, top-center, top-right, bottom-left, bottom-center, bottom-right)
+   - **Opacity**: Adjust transparency (0.1 = nearly invisible, 1.0 = fully opaque)
+   - **Color**: Select watermark text color
+   - **Timestamp**: Check to include current date/time with your text
+
+3. **Start Recording**
+   - Click "Start Recording" with watermark enabled
+   - The extension will record normally, then add watermarks during post-processing
+   - Your final downloaded video will include the watermark overlay
+
+#### Watermark Best Practices
+- **Opacity**: Use 0.6-0.8 for visible but non-intrusive watermarks
+- **Position**: Choose based on your content (avoid covering important information)
+- **Text**: Keep watermark text concise for best readability
+- **Color**: Use contrasting colors (white text on dark videos, dark text on light videos)
+
+#### Testing Watermarks
+- Use the included `test-watermark-final.html` file to test different watermark settings
+- Record the test page to see how watermarks appear over various content types
+- Adjust settings based on your recording needs
+- **Position**: Top Right is recommended for minimal interference
+- **Text Length**: Keep text short (under 20 characters) for best results
+- **Colors**: White text with slight transparency works well on most backgrounds
 
 ### Advanced Usage
 
@@ -168,21 +211,27 @@ Since Chrome extensions have security restrictions for format conversion, use th
 - Handles MediaRecorder operations
 - Processes video data chunks
 - Creates optimized Blob URLs
+- **Canvas Compositing**: Applies watermarks to video streams using HTML5 Canvas
+- **Real-time Overlay**: Renders text, images, and timestamps frame-by-frame
 
 #### 4. User Interface (`popup.html`, `popup.js`)
 - Recording controls
 - Status display
 - Error messaging
 - Format selection
+- **Watermark Configuration**: Settings for text, image, and timestamp watermarks
+- **Persistent Storage**: Saves watermark preferences using chrome.storage.local
 
 ### Data Flow
 
 1. **User Interaction**: User clicks extension icon and starts recording
-2. **Permission Request**: `getDisplayMedia()` triggers Chrome's native permission dialog
-3. **Stream Capture**: Selected screen/window content is captured as MediaStream
-4. **Data Recording**: MediaRecorder processes stream into video chunks
-5. **Data Transfer**: Blob URLs bypass Chrome extension message size limits
-6. **File Download**: Chrome downloads API saves the video file
+2. **Watermark Configuration**: User sets up watermark preferences (text, image, position, opacity)
+3. **Permission Request**: `getDisplayMedia()` triggers Chrome's native permission dialog
+4. **Stream Capture**: Selected screen/window content is captured as MediaStream
+5. **Canvas Compositing**: If watermarks enabled, original stream is composited with overlay using HTML5 Canvas
+6. **Data Recording**: MediaRecorder processes stream (original or watermarked) into video chunks
+7. **Data Transfer**: Blob URLs bypass Chrome extension message size limits
+8. **File Download**: Chrome downloads API saves the video file with watermarks embedded
 
 ## 🐛 Bug Documentation & Fixes
 
@@ -394,11 +443,15 @@ screenrecord/
 
 ## 🚀 Future Features Roadmap
 
+### Recently Completed
+- [x] **Watermark Support**: Add text, image, and timestamp watermarks to recordings ✨ *NEW*
+
 ### Immediate Enhancements
 - [ ] **Audio Recording Support**: Add microphone and system audio capture
 - [ ] **Recording Quality Settings**: Allow users to choose resolution and bitrate
 - [ ] **Recording Timer**: Display recording duration in real-time
 - [ ] **Pause/Resume Functionality**: Allow users to pause and resume recordings
+- [ ] **Advanced Watermark Features**: Custom fonts, effects, and animations
 
 ### Format Conversion Features
 - [ ] **WebP Output**: Implement WebP conversion for animated images

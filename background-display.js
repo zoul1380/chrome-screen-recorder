@@ -2,17 +2,18 @@
 // This should reliably show the permission dialog
 
 let isRecording = false;
+let watermarkTimeoutId = null;
 
-// Handle action button clicks
-chrome.action.onClicked.addListener(async (tab) => {
-  if (isRecording) {
-    await stopRecording();
-  } else {
-    await startRecording(tab);
-  }
-});
+// Handle action button clicks - DISABLED because we now use popup
+// chrome.action.onClicked.addListener(async (tab) => {
+//   if (isRecording) {
+//     await stopRecording();
+//   } else {
+//     await startRecording(tab);
+//   }
+// });
 
-async function startRecording(tab) {
+async function startRecording(tab, watermarkSettings = null) {
   try {
     // Check if tab is recordable
     if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
@@ -23,10 +24,19 @@ async function startRecording(tab) {
     // Create offscreen document
     await ensureOffscreenDocument();
 
+    // Get image data if using image watermark
+    let imageData = null;
+    if (watermarkSettings && watermarkSettings.enabled && watermarkSettings.type === 'image') {
+      const result = await chrome.storage.local.get(['watermarkImageData']);
+      imageData = result.watermarkImageData;
+    }
+
     // Send message to offscreen to start getDisplayMedia
     const result = await chrome.runtime.sendMessage({
       target: 'offscreen',
-      action: 'start-display-media'
+      action: 'start-display-media',
+      watermarkSettings: watermarkSettings,
+      watermarkImageData: imageData
     });
 
     if (result.success) {
@@ -87,11 +97,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ isRecording: isRecording, success: true });
     return true;
   }
-  
-  if (request.action === 'start-recording') {
+    if (request.action === 'start-recording') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs[0]) {
-        await startRecording(tabs[0]);
+        await startRecording(tabs[0], request.watermarkSettings);
         sendResponse({ success: true });
       } else {
         sendResponse({ success: false, error: "No active tab found" });
@@ -119,26 +128,104 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       showNotification("⚠️ Recording was empty");
     }
-    
-    sendResponse({ success: true });
+      sendResponse({ success: true });
     return true;
   }
   
   if (request.action === 'recording-data-url') {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `BACKGROUND: Received recording-data-url, blobUrl: ${!!request.blobUrl}, size: ${request.size}`
+    });
+    
     if (request.blobUrl && request.size > 0) {
-      downloadRecordingFromBlobUrl(request.blobUrl, request.size);
-      isRecording = false;
-      chrome.action.setBadgeText({ text: "" });
-      showNotification("✅ Recording saved to downloads!");
-    } else {
+      // Check if watermark is needed
+      chrome.storage.local.get(['watermarkSettings'], (result) => {
+        const watermarkSettings = result.watermarkSettings || { enabled: false };
+        
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `BACKGROUND: Watermark settings: ${JSON.stringify(watermarkSettings)}`
+        });
+        
+        if (watermarkSettings.enabled) {
+          // Process with watermark
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: 'BACKGROUND: Processing video with watermark...'
+          });
+          
+          // Send to offscreen for watermark processing
+          chrome.runtime.sendMessage({
+            target: 'offscreen',
+            action: 'process-watermark',
+            blobUrl: request.blobUrl,
+            watermarkSettings: watermarkSettings
+          });
+          
+          // Set a timeout in case watermark processing fails
+          watermarkTimeoutId = setTimeout(() => {
+            chrome.runtime.sendMessage({
+              action: 'debug-info',
+              info: 'Watermark processing timeout - downloading original video'
+            });
+            
+            // Fallback to original video if no response after 30 seconds
+            downloadRecordingFromBlobUrl(request.blobUrl, request.size);
+            finishRecording();
+            watermarkTimeoutId = null;
+          }, 30000);
+        } else {
+          // Download directly
+          downloadRecordingFromBlobUrl(request.blobUrl, request.size);
+          finishRecording();
+        }
+      });    } else {
       showNotification("⚠️ Recording was empty");
+      finishRecording();
     }
     
     sendResponse({ success: true });
     return true;
   }
   
+  if (request.action === 'watermarked-video-ready') {
+    // Clear timeout since watermark processing completed
+    if (watermarkTimeoutId) {
+      clearTimeout(watermarkTimeoutId);
+      watermarkTimeoutId = null;
+    }
+    
+    if (request.fallback) {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Using fallback video (no watermark applied)'
+      });
+    } else {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Watermarked video ready for download'
+      });
+    }
+    
+    downloadRecordingFromBlobUrl(request.blobUrl, request.size);
+    finishRecording();
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
   if (request.action === 'debug-info') {
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (request.action === 'test-watermark-settings') {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `BACKGROUND: Test message received with settings: ${JSON.stringify(request.settings)}`
+    });
+    
     sendResponse({ success: true });
     return true;
   }
@@ -165,18 +252,40 @@ async function downloadRecording(arrayBuffer) {
 
 async function downloadRecordingFromBlobUrl(blobUrl, size) {
   try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/[:.]/g, '-')
+      .replace('T', '_')
+      .split('.')[0]; // Remove milliseconds
     const filename = `screen-recording-${timestamp}.webm`;
 
-    const downloadId = await chrome.downloads.download({
-      url: blobUrl,
-      filename: filename,
-      saveAs: true
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Starting download: ${filename}, size: ${size} bytes`
     });
 
+    // Try without saveAs first to see if download works
+    const downloadId = await chrome.downloads.download({
+      url: blobUrl,
+      filename: filename
+      // Temporarily removed saveAs: true to test
+    });
+
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Download initiated with ID: ${downloadId}`
+    });    // Show notification that download started
+    showNotification(`📥 Download started: ${filename}`);
+
+    // Note: URL.revokeObjectURL not available in service worker context
+    // The blob URL will be cleaned up automatically when the extension context ends
+
   } catch (error) {
-    console.error("Download from Blob URL failed:", error);
-    showNotification(`Download failed: ${error.message}`);
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Download failed: ${error.message}`
+    });
+    showNotification(`❌ Download failed: ${error.message}`);
   }
 }
 
@@ -192,10 +301,20 @@ function arrayBufferToBase64(buffer) {
 function showNotification(message) {
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: 'icon.png',
+    iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', // 1x1 transparent pixel
     title: 'Screen Recorder',
     message: message
-  }).catch(() => {
-    // Fallback if notifications fail
+  }).catch((error) => {
+    // Fallback if notifications fail - send debug message instead
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Notification: ${message}`
+    });
   });
+}
+
+function finishRecording() {
+  isRecording = false;
+  chrome.action.setBadgeText({ text: "" });
+  showNotification("✅ Recording saved to downloads!");
 }

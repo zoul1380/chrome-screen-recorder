@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Watermark Feature Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .test-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 Chrome Screen Recorder - Watermark Feature Test</h1>
+    
+    <div class="test-section">
+        <h2>💧 Watermark Feature Implementation</h2>
+        <p>This extension now supports adding watermarks to screen recordings!</p>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>✍️ Text Watermarks</h3>
+                <ul>
+                    <li>Custom text input</li>
+                    <li>Color picker</li>
+                    <li>Opacity control</li>
+                    <li>Flexible positioning</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🖼️ Image Watermarks</h3>
+                <ul>
+                    <li>Upload custom images</li>
+                    <li>PNG/JPG/GIF support</li>
+                    <li>Automatic scaling</li>
+                    <li>Transparency support</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🕒 Timestamp Watermarks</h3>
+                <ul>
+                    <li>Real-time date/time</li>
+                    <li>Automatic formatting</li>
+                    <li>Monospace font</li>
+                    <li>Professional appearance</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🎯 Positioning Options</h3>
+                <ul>
+                    <li>Top Left</li>
+                    <li>Top Right</li>
+                    <li>Bottom Left</li>
+                    <li>Bottom Right</li>
+                    <li>Center</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+      <div class="test-section">
+        <h2>🚀 How to Test</h2>
+        <ol>
+            <li>Open the Chrome extension popup</li>
+            <li>Enable the "💧 Add Watermark" checkbox</li>
+            <li>Configure your preferred watermark settings</li>
+            <li>Start a screen recording</li>
+            <li>The watermark will be embedded in the video output</li>
+        </ol>
+        
+        <div style="background: rgba(255,193,7,0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h3>🔧 Troubleshooting Downloads</h3>
+            <p>If the "Stop & Download" doesn't show the save dialog:</p>
+            <ul>
+                <li>Check Chrome's downloads page (<code>chrome://downloads/</code>)</li>
+                <li>The file might download automatically to your default folder</li>
+                <li>Look for files named <code>screen-recording-YYYY-MM-DD_HH-MM-SS.webm</code></li>
+                <li>Check Chrome DevTools console for error messages</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>⚙️ Technical Implementation</h2>
+        <p>The watermark feature uses:</p>
+        <ul>
+            <li><code>HTML5 Canvas</code> for real-time video compositing</li>
+            <li><code>chrome.storage.local</code> for persistent settings</li>
+            <li><code>requestAnimationFrame</code> for smooth rendering</li>
+            <li><code>captureStream</code> to create watermarked video streams</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>📝 Development Notes</h2>
+        <p>This feature was implemented following the project's guidelines:</p>
+        <ul>
+            <li>✅ Branch-first development (<code>feature/add-watermark-functionality</code>)</li>
+            <li>✅ No console.log statements in production</li>
+            <li>✅ Proper error handling with try-catch blocks</li>
+            <li>✅ Clean message passing patterns</li>
+            <li>✅ Resource cleanup on recording stop</li>
+            <li>✅ Updated documentation in README.md</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Simple animation to show the page is interactive
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.feature-card');
+            cards.forEach((card, index) => {
+                card.style.animation = `fadeIn 0.5s ease-in-out ${index * 0.1}s both`;
+            });
+        });
+        
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
