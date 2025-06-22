@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GIF Conversion Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        canvas { border: 1px solid #000; margin: 10px; }
+        button { padding: 10px 20px; margin: 5px; }
+        .log { background: #f5f5f5; padding: 10px; max-height: 200px; overflow-y: auto; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>GIF Conversion Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Create Test Video</h3>
+        <button id="createVideoBtn">Create Test Video</button>
+        <video id="testVideo" width="320" height="240" controls style="display:none;"></video>
+        <p id="videoStatus">No video created yet</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Convert to GIF</h3>
+        <button disabled id="gifButton">Convert to GIF</button>
+        <div id="gifResult"></div>
+        <p id="gifStatus">Video needed first</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Log</h3>
+        <div id="log" class="log"></div>
+        <button id="clearLogBtn">Clear Log</button>    </div>
+      <script src="../src/converters/working-gif.js"></script>
+    <script src="../src/converters/simple-converter.js"></script>
+    <script src="gif-test.js"></script>
+</body>
+</html>

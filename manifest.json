@@ -1,8 +1,8 @@
 {
-  "manifest_version": 3,
-  "name": "WebP & GIF Page Recorder",
+  "manifest_version": 3,  "name": "Screen Recorder - WebM & GIF",
   "version": "1.0",
-  "description": "Record the active tab and download as animated WebP or GIF",  "permissions": [
+  "description": "Record screen, windows or tabs and save as WebM (VP9/H.264) or GIF with in-browser conversion",
+  "permissions": [
     "tabCapture",
     "activeTab",
     "storage",
@@ -10,10 +10,11 @@
     "scripting",
     "offscreen",
     "notifications"
-  ],
-  "action": {
-    "default_title": "Click to start/stop recording"
-  },  "background": {
+  ],  "action": {
+    "default_title": "Screen Recorder - Choose Format",
+    "default_popup": "popup.html"
+  },
+  "background": {
     "service_worker": "background-display.js"
   },
   "web_accessible_resources": [

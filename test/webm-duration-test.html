@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebM Duration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        video {
+            width: 100%;
+            max-width: 600px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 WebM Duration Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Instructions</h2>
+        <ol>
+            <li>Open the Chrome extension</li>
+            <li>Start a short recording (5-10 seconds)</li>
+            <li>Stop the recording</li>
+            <li>On the results page, download the WebM file</li>
+            <li>Use this page to test the WebM file duration</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>Upload WebM File for Testing</h2>
+        <input type="file" id="fileInput" accept=".webm,video/webm">
+        <div id="fileInfo"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Video Player Test</h2>
+        <video id="testVideo" controls style="display: none;">
+            Your browser does not support the video tag.
+        </video>
+        <div id="videoInfo"></div>
+    </div>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const testVideo = document.getElementById('testVideo');
+        const fileInfo = document.getElementById('fileInfo');
+        const videoInfo = document.getElementById('videoInfo');
+        
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            fileInfo.innerHTML = `
+                <div class="info">
+                    <strong>File Info:</strong><br>
+                    Name: ${file.name}<br>
+                    Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                    Type: ${file.type}<br>
+                    Last Modified: ${new Date(file.lastModified).toLocaleString()}
+                </div>
+            `;
+            
+            // Create object URL and load video
+            const objectUrl = URL.createObjectURL(file);
+            testVideo.src = objectUrl;
+            testVideo.style.display = 'block';
+            
+            // Test video metadata
+            testVideo.addEventListener('loadedmetadata', function() {
+                const duration = testVideo.duration;
+                const videoWidth = testVideo.videoWidth;
+                const videoHeight = testVideo.videoHeight;
+                
+                let durationInfo;
+                if (isNaN(duration) || !isFinite(duration)) {
+                    durationInfo = `<div class="error">❌ <strong>Duration Issue Detected!</strong><br>Duration: ${duration} (This indicates a WebM metadata problem)</div>`;
+                } else {
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = Math.floor(duration % 60);
+                    durationInfo = `<div class="success">✅ <strong>Duration OK!</strong><br>Duration: ${minutes}:${seconds.toString().padStart(2, '0')} (${duration.toFixed(2)} seconds)</div>`;
+                }
+                
+                videoInfo.innerHTML = `
+                    ${durationInfo}
+                    <div class="info">
+                        <strong>Video Properties:</strong><br>
+                        Resolution: ${videoWidth} x ${videoHeight}<br>
+                        Aspect Ratio: ${(videoWidth/videoHeight).toFixed(2)}<br>
+                        Can Play: ${testVideo.canPlayType('video/webm')}<br>
+                        Ready State: ${testVideo.readyState}
+                    </div>
+                `;
+            });
+            
+            testVideo.addEventListener('error', function() {
+                videoInfo.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Video Load Error!</strong><br>
+                        The WebM file could not be loaded. Check the console for details.
+                    </div>
+                `;
+                console.error('Video load error:', testVideo.error);
+            });
+        });
+    </script>
+</body>
+</html>
