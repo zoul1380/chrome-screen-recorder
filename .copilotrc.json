@@ -7,7 +7,10 @@
     "Handle large file transfers with Blob URLs, not direct message passing.",
     "Always validate streams, handle errors, and clean up resources properly.",
     "Follow the message passing patterns defined in the project documentation.",
-    "Test recording functionality thoroughly before committing changes."
+    "Test recording functionality thoroughly before committing changes.",
+    "Make the main folder structure clear and maintainable.",
+    "Ensure files that in the main folder are the files needed for the extension to run.",
+    "Other files should be in a separate folder like 'src' or 'lib'."
   ],
   "rules": [
     {
