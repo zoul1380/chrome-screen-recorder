@@ -195,15 +195,11 @@ async function downloadRecordingFromBlobUrl(blobUrl, size) {
     chrome.runtime.sendMessage({
       action: 'debug-info',
       info: `Download initiated with ID: ${downloadId}`
-    });
-
-    // Show notification that download started
+    });    // Show notification that download started
     showNotification(`📥 Download started: ${filename}`);
 
-    // Clean up the blob URL after download starts
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-    }, 2000); // Increased timeout
+    // Note: URL.revokeObjectURL not available in service worker context
+    // The blob URL will be cleaned up automatically when the extension context ends
 
   } catch (error) {
     chrome.runtime.sendMessage({
