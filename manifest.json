@@ -10,10 +10,10 @@
     "scripting",
     "offscreen",
     "notifications"
-  ],
-  "action": {
-    "default_title": "Click to start/stop recording"
-  },  "background": {
+  ],  "action": {
+    "default_title": "Chrome Screen Recorder",
+    "default_popup": "popup.html"
+  },"background": {
     "service_worker": "background-display.js"
   },
   "web_accessible_resources": [

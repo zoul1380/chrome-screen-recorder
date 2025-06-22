@@ -3,14 +3,14 @@
 
 let isRecording = false;
 
-// Handle action button clicks
-chrome.action.onClicked.addListener(async (tab) => {
-  if (isRecording) {
-    await stopRecording();
-  } else {
-    await startRecording(tab);
-  }
-});
+// Handle action button clicks - DISABLED because we now use popup
+// chrome.action.onClicked.addListener(async (tab) => {
+//   if (isRecording) {
+//     await stopRecording();
+//   } else {
+//     await startRecording(tab);
+//   }
+// });
 
 async function startRecording(tab, watermarkSettings = null) {
   try {
