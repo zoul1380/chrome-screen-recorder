@@ -52,11 +52,12 @@ The **WebP & GIF Page Recorder** is a Chrome extension that enables users to rec
 - 💧 **Watermark Support**: Add custom text, images, or timestamps to recordings
 
 ### Watermark Features
-- **Text Watermarks**: Add custom text with adjustable color, size, and opacity
-- **Image Watermarks**: Upload and overlay custom images with opacity control
-- **Timestamp Watermarks**: Automatically add current date/time to recordings
-- **Flexible Positioning**: Place watermarks in any corner or center of the screen
+- **Text Watermarks**: Add custom text with adjustable color and opacity
+- **Timestamp Support**: Automatically include current date/time in watermark
+- **6 Position Options**: Top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
+- **Post-Processing**: Watermarks are added after recording for maximum compatibility
 - **Persistent Settings**: Watermark preferences are saved across browser sessions
+- **Reliable Output**: Fallback to original video if watermark processing fails
 
 ### Technical Features
 - **Manifest V3 Compliance**: Modern Chrome extension architecture
@@ -115,38 +116,34 @@ cd screenrecord
 
 ### Watermark Usage
 
-#### Adding Text Watermarks
+#### Setting Up Watermarks
 1. **Enable Watermarks**
-   - Check the "💧 Add Watermark" checkbox in the popup
-   - The watermark controls will appear
+   - Click the extension icon to open the popup
+   - Check the "💧 Add Watermark" checkbox
+   - Watermark controls will appear below
 
-2. **Configure Text Watermark**
-   - Select "Text Watermark" from the dropdown
-   - Enter your custom text (default: "Screen Recording")
-   - Choose text color using the color picker
-   - Adjust opacity with the slider (0.1 to 1.0)
-   - Select position from dropdown (Top Left, Top Right, Bottom Left, Bottom Right, Center)
+2. **Configure Watermark Settings**
+   - **Text**: Enter your custom watermark text
+   - **Position**: Choose from 6 positions (top-left, top-center, top-right, bottom-left, bottom-center, bottom-right)
+   - **Opacity**: Adjust transparency (0.1 = nearly invisible, 1.0 = fully opaque)
+   - **Color**: Select watermark text color
+   - **Timestamp**: Check to include current date/time with your text
 
-#### Adding Image Watermarks
-1. **Select Image Type**
-   - Choose "Image Watermark" from the dropdown
-   - Click "Choose File" to upload your image
-   - Supported formats: PNG, JPG, GIF, WebP
-   - Adjust opacity for transparency effect
-
-2. **Image Requirements**
-   - Recommended size: 200x200 pixels or smaller
-   - Transparent PNG files work best for professional overlay
-   - Image will be automatically scaled to fit appropriately
-
-#### Adding Timestamp Watermarks
-- Select "Timestamp" from the dropdown
-- Current date and time will be automatically added to recordings
-- Format: "MM/DD/YYYY, HH:MM:SS AM/PM"
-- Position and opacity can be adjusted
+3. **Start Recording**
+   - Click "Start Recording" with watermark enabled
+   - The extension will record normally, then add watermarks during post-processing
+   - Your final downloaded video will include the watermark overlay
 
 #### Watermark Best Practices
-- **Opacity**: Use 0.6-0.8 for subtle branding without interfering with content
+- **Opacity**: Use 0.6-0.8 for visible but non-intrusive watermarks
+- **Position**: Choose based on your content (avoid covering important information)
+- **Text**: Keep watermark text concise for best readability
+- **Color**: Use contrasting colors (white text on dark videos, dark text on light videos)
+
+#### Testing Watermarks
+- Use the included `test-watermark-final.html` file to test different watermark settings
+- Record the test page to see how watermarks appear over various content types
+- Adjust settings based on your recording needs
 - **Position**: Top Right is recommended for minimal interference
 - **Text Length**: Keep text short (under 20 characters) for best results
 - **Colors**: White text with slight transparency works well on most backgrounds

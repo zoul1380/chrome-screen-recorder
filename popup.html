@@ -153,6 +153,29 @@
             background: #4a4a4a;
             color: white;
         }
+        
+        .debug-section {
+            margin-top: 15px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .debug-info {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 120px;
+            overflow-y: auto;
+            color: #666;
+        }
+        
+        .debug-info div {
+            margin: 2px 0;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>    <div class="container">
@@ -228,8 +251,15 @@
         <button id="startBtn">🔴 Start Recording</button>
         <button id="stopBtn" disabled>⏹️ Stop & Download</button>
         
-        <div id="status" class="status">Ready to record</div>
+        <div id="status" class="status">Ready to record    </div>    <div class="debug-section">
+      <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+        <strong>Debug Status:</strong> <span id="js-status">❌ JavaScript not loaded</span>
+      </div>
+      <div class="debug-info" id="debug-info"></div>
+      <button id="test-watermark" style="margin-top: 10px; background: #ff6b35;">🧪 Test Watermark Settings</button>
+      <button id="simple-test" style="margin-top: 10px; background: #007acc; margin-left: 10px;">🔥 Simple Test</button>
     </div>
+  </div>
     
     <script src="popup.js"></script>
 </body>

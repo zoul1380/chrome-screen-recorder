@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Watermark Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 400px;
+        }
+        
+        .test-content {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .timer {
+            font-size: 48px;
+            font-weight: bold;
+            color: #FFD700;
+            margin: 20px 0;
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 Watermark Save Dialog Fix Test</h1>
+    
+    <div class="instructions">
+        <h2>📋 Test Instructions</h2>
+        <ol>
+            <li>Open Chrome extension popup</li>
+            <li>Enable "Add Watermark" checkbox</li>
+            <li>Set watermark text (e.g., "TEST WATERMARK")</li>
+            <li>Choose position and opacity</li>
+            <li>Start recording this page</li>
+            <li>Wait 10-15 seconds</li>
+            <li>Stop recording</li>
+            <li><strong>Check:</strong> Save dialog should appear!</li>
+        </ol>
+    </div>
+    
+    <div class="test-content">
+        <h2>Test Content Area</h2>
+        <p>This colorful content will help you see the watermark clearly in your recording.</p>
+        
+        <div class="timer" id="timer">00:00</div>
+        
+        <p>The timer above helps you track recording duration.</p>
+        <p>Your watermark should appear overlaid on this content!</p>
+    </div>
+    
+    <div class="instructions">
+        <h3>✅ Expected Results</h3>
+        <p><strong>✅ Save dialog appears</strong> when you stop recording</p>
+        <p><strong>✅ Video file downloads</strong> successfully</p>
+        <p><strong>✅ Watermark visible</strong> in the saved video</p>
+        <p><strong>✅ Debug messages</strong> show in extension popup</p>
+    </div>
+
+    <script>
+        // Simple timer to help with testing
+        let seconds = 0;
+        const timerElement = document.getElementById('timer');
+        
+        setInterval(() => {
+            seconds++;
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            timerElement.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }, 1000);
+        
+        console.log('Watermark test page loaded - ready for recording!');
+    </script>
+</body>
+</html>

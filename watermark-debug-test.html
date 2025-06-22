@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watermark Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .test-area {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            min-height: 200px;
+        }
+        
+        .debug-steps {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #007acc;
+        }
+        
+        .debug-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .debug-steps li {
+            margin: 8px 0;
+        }
+        
+        .expected-result {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #c3e6c3;
+            margin: 15px 0;
+        }
+        
+        .moving-text {
+            animation: slide 3s infinite;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        @keyframes slide {
+            0% { transform: translateX(-100px); }
+            50% { transform: translateX(100px); }
+            100% { transform: translateX(-100px); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🐛 Watermark Debug Test</h1>
+    
+    <div class="debug-steps">
+        <h2>🔍 Debug Test Steps</h2>
+        <ol>
+            <li><strong>Enable Watermarks:</strong> Check "Add Watermark" in extension popup</li>
+            <li><strong>Set Test Text:</strong> Enter "DEBUG WATERMARK TEST" as watermark text</li>
+            <li><strong>High Opacity:</strong> Set opacity to 0.9 (nearly opaque for visibility)</li>
+            <li><strong>Top-Right Position:</strong> Select top-right position</li>
+            <li><strong>White Color:</strong> Use white text color</li>
+            <li><strong>Record 10-15 seconds</strong> of this page</li>
+            <li><strong>Check Debug Messages:</strong> Look at extension popup for debug info</li>
+        </ol>
+    </div>
+    
+    <div class="test-area">
+        <h2>🎯 Watermark Test Area</h2>
+        <p>This high-contrast area will make watermarks clearly visible</p>
+        <div class="moving-text">Moving Text Element</div>
+        <p>Watermark should appear in <strong>TOP-RIGHT CORNER</strong></p>
+        <p>Look for both TEXT and RED DEBUG RECTANGLE</p>
+    </div>
+    
+    <div class="expected-result">
+        <h3>✅ Expected Debug Messages</h3>
+        <ul>
+            <li>"Starting watermark processing with settings: {...}"</li>
+            <li>"Video dimensions: [width]x[height], duration: [X]s"</li>
+            <li>"Video playback started successfully"</li>
+            <li>"Adding watermark: text=DEBUG WATERMARK TEST, opacity=0.9"</li>
+            <li>"Drawing watermark [text] at ([x], [y]) with fontSize [size]"</li>
+            <li>"Processed [X] frames, video time: [X]s"</li>
+            <li>"Video processing complete. Processed [X] frames."</li>
+        </ul>
+    </div>
+    
+    <div class="expected-result">
+        <h3>🎥 Expected Visual Result</h3>
+        <p><strong>You should see in the final video:</strong></p>
+        <ul>
+            <li>✅ White text "DEBUG WATERMARK TEST" in top-right corner</li>
+            <li>✅ Red rectangular background behind the text (debug indicator)</li>
+            <li>✅ Watermark visible throughout entire video</li>
+            <li>✅ Text should be clearly readable (0.9 opacity)</li>
+        </ul>
+    </div>
+    
+    <div class="debug-steps">
+        <h3>🚨 If Watermark Still Not Visible</h3>
+        <p>Check debug messages for these potential issues:</p>
+        <ul>
+            <li><strong>"Watermark disabled - skipping"</strong> → Settings not passed correctly</li>
+            <li><strong>"Video playback failed"</strong> → Video processing issue</li>
+            <li><strong>No frame processing messages</strong> → Video not playing</li>
+            <li><strong>No watermark drawing messages</strong> → Rendering issue</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('Watermark debug test page ready!');
+        
+        // Add timestamp for reference
+        setInterval(() => {
+            document.title = `Watermark Debug Test - ${new Date().toLocaleTimeString()}`;
+        }, 1000);
+    </script>
+</body>
+</html>

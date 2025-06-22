@@ -29,6 +29,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
+  }  if (request.action === 'process-watermark') {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: 'OFFSCREEN: Received watermark processing request'
+    });
+    
+    // Use full watermark processing
+    processVideoWithWatermark(request.blobUrl, request.watermarkSettings)
+      .then(() => sendResponse({ success: true }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
   }
 });
 
@@ -59,32 +70,15 @@ async function startDisplayMedia() {
     chrome.runtime.sendMessage({
       action: 'debug-info',
       info: `Original stream created with ${videoTracks.length} video tracks`
-    });    let recordingStream = stream;    // Apply watermark if enabled - using simplified approach
+    });    let recordingStream = stream;    // Apply watermark if enabled - using ultra-simplified approach
     if (watermarkSettings && watermarkSettings.enabled) {
-      try {
-        chrome.runtime.sendMessage({
-          action: 'debug-info',
-          info: 'Applying simplified watermark to stream...'
-        });
-        recordingStream = await applySimpleWatermark(stream);
-        
-        if (!recordingStream || recordingStream.getVideoTracks().length === 0) {
-          throw new Error("Failed to create watermarked stream");
-        }
-        
-        chrome.runtime.sendMessage({
-          action: 'debug-info',
-          info: `Watermarked stream created with ${recordingStream.getVideoTracks().length} video tracks`
-        });
-      } catch (watermarkError) {
-        chrome.runtime.sendMessage({
-          action: 'debug-info',
-          info: `Watermark failed, using original stream: ${watermarkError.message}`
-        });
-        // Fall back to original stream if watermark fails
-        recordingStream = stream;
-        cleanupWatermark();
-      }
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Watermark enabled but using original stream for now - watermark will be post-processed'
+      });
+      // For now, just use original stream to ensure recording works
+      // TODO: Implement post-processing watermark approach
+      recordingStream = stream;
     }
 
     // Setup MediaRecorder
@@ -209,6 +203,11 @@ function handleRecordingComplete() {
       throw new Error("No data recorded");
     }
 
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Processing ${recordedChunks.length} chunks, total size: ${recordedChunks.reduce((sum, chunk) => sum + chunk.size, 0)} bytes`
+    });
+
     // Create blob from recorded chunks
     const blob = new Blob(recordedChunks, {
       type: 'video/webm'
@@ -218,6 +217,11 @@ function handleRecordingComplete() {
       throw new Error("Recording blob is empty");
     }
 
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Blob created successfully: ${blob.size} bytes`
+    });
+
     // Use Blob URL approach for large files
     const blobUrl = URL.createObjectURL(blob);
 
@@ -225,7 +229,8 @@ function handleRecordingComplete() {
     chrome.runtime.sendMessage({
       action: 'recording-data-url',
       blobUrl: blobUrl,
-      size: blob.size
+      size: blob.size,
+      watermarkSettings: watermarkSettings // Pass watermark settings for potential post-processing
     });
 
     // Clean up
@@ -233,6 +238,10 @@ function handleRecordingComplete() {
     mediaRecorder = null;
 
   } catch (error) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `handleRecordingComplete error: ${error.message}`
+    });
     chrome.runtime.sendMessage({
       action: 'recording-data-url',
       blobUrl: null,
@@ -688,4 +697,259 @@ function getSimpleWatermarkPosition(position) {
   }
   
   return { x, y };
+}
+
+// Watermark post-processing functionality
+async function processVideoWithWatermark(blobUrl, watermarkSettings) {
+  try {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Starting watermark processing with settings: ${JSON.stringify(watermarkSettings)}`
+    });
+
+    // Create video element
+    const video = document.createElement('video');
+    video.src = blobUrl;
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve;
+      video.onerror = () => reject(new Error('Failed to load video'));
+      video.load();
+    });
+
+    // Create canvas for watermarked frames
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Video dimensions: ${canvas.width}x${canvas.height}, duration: ${video.duration}s`
+    });
+
+    // Create MediaRecorder for output
+    const stream = canvas.captureStream(30); // 30 FPS
+    const recorder = new MediaRecorder(stream, {
+      mimeType: 'video/webm;codecs=vp9'
+    });
+    
+    const chunks = [];
+    recorder.ondataavailable = event => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    recorder.onstop = () => {
+      const watermarkedBlob = new Blob(chunks, { type: 'video/webm' });
+      const watermarkedBlobUrl = URL.createObjectURL(watermarkedBlob);
+      
+      chrome.runtime.sendMessage({
+        action: 'watermarked-video-ready',
+        blobUrl: watermarkedBlobUrl,
+        size: watermarkedBlob.size
+      });
+    };    // Start recording watermarked version
+    recorder.start();
+    
+    let frameCount = 0;
+    
+    // Process frames during video playback
+    const processFrame = () => {
+      if (video.ended) {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Video processing complete. Processed ${frameCount} frames.`
+        });
+        recorder.stop();
+        return;
+      }
+
+      if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+        frameCount++;
+        
+        // Draw video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Add watermark
+        addWatermarkToCanvas(ctx, canvas.width, canvas.height, watermarkSettings);
+        
+        // Debug: Log every 30 frames (roughly every second at 30fps)
+        if (frameCount % 30 === 0) {
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: `Processed ${frameCount} frames, video time: ${video.currentTime.toFixed(2)}s`
+          });
+        }
+      }
+      
+      // Continue processing
+      if (!video.ended) {
+        requestAnimationFrame(processFrame);
+      }
+    };    // Start playback and processing
+    video.currentTime = 0;
+    
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: 'Starting video playback for watermark processing'
+    });
+    
+    video.play().then(() => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Video playback started successfully'
+      });
+      processFrame();
+    }).catch(error => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `Video playback failed: ${error.message}`
+      });
+      throw error;
+    });
+
+  } catch (error) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Watermark processing failed: ${error.message}`
+    });
+    
+    // Fallback to original
+    chrome.runtime.sendMessage({
+      action: 'watermarked-video-ready',
+      blobUrl: blobUrl,
+      size: 0,
+      fallback: true
+    });
+  }
+}
+
+function addWatermarkToCanvas(ctx, width, height, settings) {
+  if (!settings.enabled) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: 'Watermark disabled - skipping'
+    });
+    return;
+  }
+
+  chrome.runtime.sendMessage({
+    action: 'debug-info',
+    info: `Adding watermark: text="${settings.text}", opacity=${settings.opacity}, position=${settings.position}`
+  });
+
+  // Save context
+  ctx.save();
+  
+  // Set global alpha for watermark
+  ctx.globalAlpha = settings.opacity || 0.7;
+
+  if (settings.text && settings.text.trim()) {
+    // Text watermark
+    const fontSize = Math.max(16, Math.min(width / 20, height / 20));
+    ctx.font = `${fontSize}px Arial`;
+    ctx.fillStyle = settings.color || '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    
+    let text = settings.text;
+    if (settings.timestamp) {
+      const now = new Date();
+      text += ` - ${now.toLocaleString()}`;
+    }
+    
+    // Position watermark
+    const x = getWatermarkX(width, settings.position, ctx.measureText(text).width);
+    const y = getWatermarkY(height, settings.position, fontSize);
+    
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Drawing watermark "${text}" at (${x}, ${y}) with fontSize ${fontSize}`
+    });
+    
+    // Draw text with outline
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+    
+    // Debug: Also draw a visible colored rectangle to test rendering
+    ctx.fillStyle = 'red';
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(x - 10, y - fontSize - 10, ctx.measureText(text).width + 20, fontSize + 20);
+  }
+
+  // Restore context
+  ctx.restore();
+}
+
+function getWatermarkX(canvasWidth, position, textWidth) {
+  switch (position) {
+    case 'top-right':
+    case 'bottom-right':
+      return canvasWidth - textWidth - 20;
+    case 'top-center':
+    case 'bottom-center':
+      return (canvasWidth - textWidth) / 2;
+    case 'top-left':
+    case 'bottom-left':
+    default:
+      return 20;
+  }
+}
+
+function getWatermarkY(canvasHeight, position, fontSize) {
+  switch (position) {
+    case 'bottom-left':
+    case 'bottom-center':
+    case 'bottom-right':
+      return canvasHeight - 20;
+    case 'top-left':
+    case 'top-center':
+    case 'top-right':
+    default:
+      return fontSize + 20;
+  }
+}
+
+// Alternative simple watermark approach for testing
+async function processVideoWithWatermarkSimple(blobUrl, watermarkSettings) {
+  try {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: 'SIMPLE: Starting simple watermark test approach'
+    });
+
+    // Just add a static watermark image and return the original video
+    // This tests if the message flow works
+    setTimeout(() => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'SIMPLE: Watermark test completed - returning original video'
+      });
+      
+      chrome.runtime.sendMessage({
+        action: 'watermarked-video-ready',
+        blobUrl: blobUrl,
+        size: 0,
+        fallback: false
+      });
+    }, 2000);
+
+  } catch (error) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `SIMPLE: Simple watermark test failed: ${error.message}`
+    });
+    
+    // Fallback to original
+    chrome.runtime.sendMessage({
+      action: 'watermarked-video-ready',
+      blobUrl: blobUrl,
+      size: 0,
+      fallback: true
+    });
+  }
 }
