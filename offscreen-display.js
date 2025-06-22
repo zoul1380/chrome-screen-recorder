@@ -59,15 +59,32 @@ async function startDisplayMedia() {
     chrome.runtime.sendMessage({
       action: 'debug-info',
       info: `Original stream created with ${videoTracks.length} video tracks`
-    });    let recordingStream = stream;    // Apply watermark if enabled - temporarily disabled for debugging
+    });    let recordingStream = stream;    // Apply watermark if enabled - using simplified approach
     if (watermarkSettings && watermarkSettings.enabled) {
-      chrome.runtime.sendMessage({
-        action: 'debug-info',
-        info: 'Watermark requested but temporarily disabled for debugging - using original stream'
-      });
-      // TODO: Re-enable watermark after fixing canvas composition issues
-      // For now, just record without watermark to ensure recording works
-      recordingStream = stream;
+      try {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: 'Applying simplified watermark to stream...'
+        });
+        recordingStream = await applySimpleWatermark(stream);
+        
+        if (!recordingStream || recordingStream.getVideoTracks().length === 0) {
+          throw new Error("Failed to create watermarked stream");
+        }
+        
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Watermarked stream created with ${recordingStream.getVideoTracks().length} video tracks`
+        });
+      } catch (watermarkError) {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Watermark failed, using original stream: ${watermarkError.message}`
+        });
+        // Fall back to original stream if watermark fails
+        recordingStream = stream;
+        cleanupWatermark();
+      }
     }
 
     // Setup MediaRecorder
@@ -475,4 +492,200 @@ function cleanupWatermark() {
     action: 'debug-info',
     info: 'Watermark resources cleaned up'
   });
+}
+
+async function applySimpleWatermark(originalStream) {
+  return new Promise((resolve, reject) => {
+    try {
+      const videoTrack = originalStream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+      
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `Simple watermark - canvas size: ${settings.width}x${settings.height}`
+      });
+      
+      // Create canvas for compositing
+      canvas = document.createElement('canvas');
+      canvas.width = settings.width || 1920;
+      canvas.height = settings.height || 1080;
+      canvasCtx = canvas.getContext('2d');
+      
+      // Create video element
+      const video = document.createElement('video');
+      video.srcObject = originalStream;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.style.display = 'none';
+      
+      let isReady = false;
+      
+      // Simple ready check
+      video.onloadeddata = () => {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: 'Video data loaded, starting watermark rendering'
+        });
+        
+        isReady = true;
+        startSimpleWatermarkLoop();
+      };
+      
+      // Error handling
+      video.onerror = (e) => {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Video error in simple watermark: ${e.message}`
+        });
+        reject(new Error(`Video error: ${e.message}`));
+      };
+      
+      // Timeout fallback
+      setTimeout(() => {
+        if (!isReady) {
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: 'Simple watermark timeout, using original stream'
+          });
+          resolve(originalStream);
+        }
+      }, 3000);
+      
+      function startSimpleWatermarkLoop() {
+        try {
+          // Draw first frame to test
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            canvasCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            drawSimpleWatermark();
+            
+            // Get stream from canvas
+            compositeStream = canvas.captureStream(30);
+            
+            if (compositeStream && compositeStream.getVideoTracks().length > 0) {
+              chrome.runtime.sendMessage({
+                action: 'debug-info',
+                info: 'Simple watermark stream created successfully'
+              });
+              
+              // Start continuous drawing
+              requestAnimationFrame(drawVideoFrame);
+              resolve(compositeStream);
+            } else {
+              throw new Error('Failed to create canvas stream');
+            }
+          } else {
+            // Try again after a short delay
+            setTimeout(startSimpleWatermarkLoop, 100);
+          }
+        } catch (error) {
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: `Simple watermark loop error: ${error.message}`
+          });
+          resolve(originalStream);
+        }
+      }
+      
+      function drawVideoFrame() {
+        try {
+          if (video.readyState >= 2 && mediaRecorder && mediaRecorder.state === 'recording') {
+            canvasCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            drawSimpleWatermark();
+            requestAnimationFrame(drawVideoFrame);
+          }
+        } catch (error) {
+          // Silent fail to not break recording
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: `Frame draw error: ${error.message}`
+          });
+        }
+      }
+      
+    } catch (error) {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `Simple watermark setup error: ${error.message}`
+      });
+      reject(error);
+    }
+  });
+}
+
+function drawSimpleWatermark() {
+  if (!watermarkSettings || !watermarkSettings.enabled || !canvasCtx) return;
+  
+  try {
+    canvasCtx.save();
+    canvasCtx.globalAlpha = watermarkSettings.opacity || 0.8;
+    
+    const position = watermarkSettings.position || 'top-right';
+    const { x, y } = getSimpleWatermarkPosition(position);
+    
+    if (watermarkSettings.type === 'text') {
+      const text = watermarkSettings.text || 'Screen Recording';
+      const color = watermarkSettings.color || '#ffffff';
+      
+      const fontSize = Math.max(20, canvas.width / 50);
+      canvasCtx.font = `bold ${fontSize}px Arial, sans-serif`;
+      canvasCtx.fillStyle = color;
+      canvasCtx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      canvasCtx.lineWidth = 3;
+      
+      // Draw text with outline
+      canvasCtx.strokeText(text, x, y);
+      canvasCtx.fillText(text, x, y);
+      
+    } else if (watermarkSettings.type === 'timestamp') {
+      const timestamp = new Date().toLocaleString();
+      
+      const fontSize = Math.max(16, canvas.width / 80);
+      canvasCtx.font = `${fontSize}px monospace`;
+      canvasCtx.fillStyle = '#ffffff';
+      canvasCtx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      canvasCtx.lineWidth = 2;
+      
+      canvasCtx.strokeText(timestamp, x, y);
+      canvasCtx.fillText(timestamp, x, y);
+    }
+    
+    canvasCtx.restore();
+    
+  } catch (error) {
+    // Silent fail for watermark drawing errors
+  }
+}
+
+function getSimpleWatermarkPosition(position) {
+  const padding = 30;
+  let x = padding, y = padding + 40;
+  
+  switch (position) {
+    case 'top-left':
+      x = padding;
+      y = padding + 40;
+      break;
+    case 'top-right':
+      x = canvas.width - 250 - padding;
+      y = padding + 40;
+      break;
+    case 'bottom-left':
+      x = padding;
+      y = canvas.height - padding - 10;
+      break;
+    case 'bottom-right':
+      x = canvas.width - 250 - padding;
+      y = canvas.height - padding - 10;
+      break;
+    case 'center':
+      x = canvas.width / 2 - 125;
+      y = canvas.height / 2;
+      break;
+    default:
+      x = canvas.width - 250 - padding;
+      y = padding + 40;
+  }
+  
+  return { x, y };
 }
