@@ -59,26 +59,15 @@ async function startDisplayMedia() {
     chrome.runtime.sendMessage({
       action: 'debug-info',
       info: `Original stream created with ${videoTracks.length} video tracks`
-    });
-
-    let recordingStream = stream;
-
-    // Apply watermark if enabled
+    });    let recordingStream = stream;    // Apply watermark if enabled - temporarily disabled for debugging
     if (watermarkSettings && watermarkSettings.enabled) {
       chrome.runtime.sendMessage({
         action: 'debug-info',
-        info: 'Applying watermark to stream...'
+        info: 'Watermark requested but temporarily disabled for debugging - using original stream'
       });
-      recordingStream = await applyWatermark(stream);
-      
-      if (!recordingStream || recordingStream.getVideoTracks().length === 0) {
-        throw new Error("Failed to create watermarked stream");
-      }
-      
-      chrome.runtime.sendMessage({
-        action: 'debug-info',
-        info: `Watermarked stream created with ${recordingStream.getVideoTracks().length} video tracks`
-      });
+      // TODO: Re-enable watermark after fixing canvas composition issues
+      // For now, just record without watermark to ensure recording works
+      recordingStream = stream;
     }
 
     // Setup MediaRecorder
