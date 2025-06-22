@@ -15,41 +15,10 @@
         .container {
             text-align: center;
         }
-        
-        h1 {
+          h1 {
             font-size: 18px;
             margin: 0 0 20px 0;
             font-weight: 600;
-        }
-        
-        .format-selector {
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-        }
-        
-        .format-selector label {
-            font-size: 14px;
-            margin-bottom: 10px;
-            display: block;
-            font-weight: 500;
-        }
-        
-        .radio-group {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
-        
-        .radio-option {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        input[type="radio"] {
-            margin: 0;
         }
         
         button {
@@ -143,35 +112,16 @@
         <h1>🎬 Page Recorder</h1>
         
         <div class="instructions" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; margin-bottom: 15px;">
-            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">📋 How to use:</p>
-            <p style="font-size: 12px; margin: 0; line-height: 1.4;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600;">📋 How to use:</p>            <p style="font-size: 12px; margin: 0; line-height: 1.4;">
                 1. Navigate to any website<br>
                 2. Click "Start Recording"<br>
                 3. <strong>ALLOW screen recording</strong> when prompted<br>
-                4. Click "Stop Recording" when done
-            </p>
-        </div>        <div class="format-selector">
-            <label>Output Format:</label>
-            <div class="radio-group" style="flex-wrap: wrap; gap: 15px;">
-                <div class="radio-option">
-                    <input type="radio" id="webm" name="format" value="webm" checked>
-                    <label for="webm">WebM (VP9)</label>
-                </div>
-                <div class="radio-option">
-                    <input type="radio" id="webm-h264" name="format" value="webm-h264">
-                    <label for="webm-h264">WebM (H.264)</label>
-                </div>
-                <div class="radio-option">
-                    <input type="radio" id="gif" name="format" value="gif">
-                    <label for="gif">GIF</label>
-                </div>
-            </div>
-            <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
-                H.264 codec provides better compatibility with most video players
-            </div>
-        </div>
-          <button id="startBtn">🔴 Start Recording</button>
-        <button id="stopBtn" disabled>⏹️ Stop & Download</button>
+                4. Click "Stop Recording" when done<br>
+                5. Choose format on results page
+            </p></div>
+        
+        <button id="startBtn">🔴 Start Recording</button>
+        <button id="stopBtn" disabled>⏹️ Stop Recording</button>
         
         <div id="status" class="status">Ready to record</div>
         <div id="progressContainer" class="progress-bar" style="display: none;">

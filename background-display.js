@@ -95,13 +95,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
-    if (request.action === 'start-recording') {
+  if (request.action === 'start-recording') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      if (tabs[0]) {
-        await startRecording(tabs[0], request.format || 'webm');
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: "No active tab found" });
+      try {
+        if (tabs[0]) {
+          await startRecording(tabs[0], request.format || 'webm');
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: "No active tab found" });
+        }
+      } catch (error) {
+        console.error('Error in start-recording:', error);
+        sendResponse({ success: false, error: error.message });
       }
     });
     return true;

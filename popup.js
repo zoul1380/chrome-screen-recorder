@@ -1,20 +1,18 @@
 // Popup script for WebP & GIF Page Recorder extension
 
-document.addEventListener('DOMContentLoaded', function() {    const startBtn = document.getElementById('startBtn');
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const statusDiv = document.getElementById('status');
-    const formatRadios = document.querySelectorAll('input[name="format"]');
     const progressContainer = document.getElementById('progressContainer');
     const progressFill = document.getElementById('progressFill');
     
-    // Check initial status when popup opens
-    checkRecordingStatus();
+    // Initialize with default state
+    updateStatus('Checking status...', 'info');
+    updateButtons(false);
     
-    // Get selected format
-    function getSelectedFormat() {
-        const selected = document.querySelector('input[name="format"]:checked');
-        return selected ? selected.value : 'webm';
-    }
+    // Check initial status when popup opens
+    setTimeout(checkRecordingStatus, 100);
       // Update status display
     function updateStatus(message, type = 'info') {
         statusDiv.textContent = message;
@@ -35,28 +33,22 @@ document.addEventListener('DOMContentLoaded', function() {    const startBtn = d
             progressFill.style.width = percentage + '%';
         }
     }
-    
-    // Update button states
+      // Update button states
     function updateButtons(recording = false) {
         startBtn.disabled = recording;
         stopBtn.disabled = !recording;
-        
-        // Disable format selection while recording
-        formatRadios.forEach(radio => {
-            radio.disabled = recording;
-        });
-        
-
     }
-    
-    // Check current recording status
-    async function checkRecordingStatus() {
-        try {
-            const response = await chrome.runtime.sendMessage({
-                action: 'get-status'
-            });
-            
-
+      // Check current recording status
+    function checkRecordingStatus() {
+        chrome.runtime.sendMessage({
+            action: 'get-status'
+        }, function(response) {
+            if (chrome.runtime.lastError) {
+                console.error('Runtime error checking status:', chrome.runtime.lastError);
+                updateStatus('Error checking status', 'error');
+                updateButtons(false);
+                return;
+            }
             
             if (response && response.isRecording) {
                 updateStatus('🔴 Recording in progress...', 'info');
@@ -65,70 +57,74 @@ document.addEventListener('DOMContentLoaded', function() {    const startBtn = d
                 updateStatus('Ready to record', 'info');
                 updateButtons(false);
             }
-        } catch (error) {
-            console.error('Error checking status:', error);
-            updateStatus('Error checking status', 'error');
-            updateButtons(false);
-        }
-    }
-      // Start recording
+        });
+    }// Start recording
     startBtn.addEventListener('click', async function() {
         try {
-            const format = getSelectedFormat();
             updateStatus('Starting recording...', 'processing');
 
-            
-            const response = await chrome.runtime.sendMessage({
-                action: 'start-recording',
-                format: format
+            // Send message and wait for response
+            chrome.runtime.sendMessage({
+                action: 'start-recording'
+            }, function(response) {
+                if (chrome.runtime.lastError) {
+                    console.error('Runtime error:', chrome.runtime.lastError);
+                    updateStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
+                    updateButtons(false);
+                    return;
+                }
+                
+                if (response && response.success) {
+                    updateStatus('🔴 Recording in progress...', 'info');
+                    updateButtons(true);
+                } else {
+                    const errorMsg = response?.error || 'Failed to start recording';
+                    console.error('Start recording failed:', errorMsg);
+                    updateStatus(`Error: ${errorMsg}`, 'error');
+                    updateButtons(false);
+                }
             });
-            
-
-            
-            if (response && response.success) {
-                updateStatus('🔴 Recording in progress...', 'info');
-                updateButtons(true);
-            } else {
-                throw new Error(response?.error || 'Failed to start recording');
-            }
         } catch (error) {
             console.error('Error starting recording:', error);
             updateStatus(`Error: ${error.message}`, 'error');
             updateButtons(false);
         }
-    });
-      // Stop recording and download
+    });    // Stop recording and download
     stopBtn.addEventListener('click', async function() {
         try {
-            const format = getSelectedFormat();
             updateStatus(`Stopping recording...`, 'processing');
 
-            
-            const response = await chrome.runtime.sendMessage({
-                action: 'stop-recording',
-                format: format
-            });
-            
-
-            
-            if (response && response.success) {
-                updateStatus(`✅ Recording stopped! Processing download...`, 'success');
-                updateButtons(false);
+            chrome.runtime.sendMessage({
+                action: 'stop-recording'
+            }, function(response) {
+                if (chrome.runtime.lastError) {
+                    console.error('Runtime error:', chrome.runtime.lastError);
+                    updateStatus(`Error: ${chrome.runtime.lastError.message}`, 'error');
+                    updateButtons(false);
+                    return;
+                }
                 
-                // Close popup after a delay
-                setTimeout(() => {
-                    window.close();
-                }, 2000);
-            } else {
-                throw new Error(response?.error || 'Failed to stop recording');
-            }        } catch (error) {
+                if (response && response.success) {
+                    updateStatus(`✅ Recording stopped! Opening results...`, 'success');
+                    updateButtons(false);
+                    
+                    // Close popup after a delay
+                    setTimeout(() => {
+                        window.close();
+                    }, 1500);
+                } else {
+                    const errorMsg = response?.error || 'Failed to stop recording';
+                    console.error('Stop recording failed:', errorMsg);
+                    updateStatus(`Error: ${errorMsg}`, 'error');
+                    updateButtons(false);
+                }
+            });
+        } catch (error) {
             console.error('Error stopping recording:', error);
             updateStatus(`Error: ${error.message}`, 'error');
-            
-            // Still reset buttons in case of error
             updateButtons(false);
         }
-    });    // Listen for messages from background script
+    });// Listen for messages from background script
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         if (message.action === 'RECORDING_STATUS') {
             let statusText = message.status;
@@ -149,10 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {    const startBtn = d
         if (response && response.recording) {
             updateStatus('🔴 Recording in progress...', 'info');
             updateButtons(true);
-        }
-    }).catch(err => {
-
+        }    }).catch(err => {
+        // Silently handle errors
     });
-    
-
 });
