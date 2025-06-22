@@ -30,15 +30,16 @@ A Chrome extension for recording screen content with **animated GIF export** and
 
 ```
 screenrecord/
-├── 📄 Core Extension Files
+├── 📄 Extension Core Files (Production)
 │   ├── manifest.json              # Extension config
 │   ├── popup.html + popup.js      # Recording interface  
 │   ├── background-display.js      # Service worker
-│   └── offscreen-display.*        # Recording engine
-├── 🎬 Results & Conversion
-│   ├── results.html + results.js  # Format selection UI
-│   ├── simple-converter.js        # Conversion engine
-│   └── working-gif.js             # GIF encoder
+│   ├── offscreen-display.*        # Recording engine
+│   └── results.html + results.js  # Format selection UI
+├── 📦 src/                        # Source Libraries
+│   └── converters/                # Format conversion engines
+│       ├── simple-converter.js    # Multi-format converter
+│       └── working-gif.js         # GIF encoder
 ├── 🧪 test/                       # Test files & demos
 ├── 📚 docs/                       # Documentation
 └── 🗃️ backup/                     # Version history
