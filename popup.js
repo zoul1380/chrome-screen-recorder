@@ -182,20 +182,26 @@ document.addEventListener('DOMContentLoaded', function() {
             updateStatus(`Error: ${error.message}`, 'error');
             updateButtons(false);
         }
-    });
-      // Stop recording and download
+    });    // Stop recording and download
     stopBtn.addEventListener('click', async function() {
         try {
             const format = getSelectedFormat();
             updateStatus(`Stopping recording...`, 'processing');
-
+            
+            chrome.runtime.sendMessage({
+                action: 'debug-info',
+                info: `Stop button clicked, format: ${format}`
+            });
             
             const response = await chrome.runtime.sendMessage({
                 action: 'stop-recording',
                 format: format
             });
             
-
+            chrome.runtime.sendMessage({
+                action: 'debug-info',
+                info: `Stop recording response: ${JSON.stringify(response)}`
+            });
             
             if (response && response.success) {
                 updateStatus(`✅ Recording stopped! Processing download...`, 'success');
@@ -207,8 +213,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 2000);
             } else {
                 throw new Error(response?.error || 'Failed to stop recording');
-            }        } catch (error) {
-            console.error('Error stopping recording:', error);
+            }
+        } catch (error) {
+            chrome.runtime.sendMessage({
+                action: 'debug-info',
+                info: `Stop recording error: ${error.message}`
+            });
             updateStatus(`Error: ${error.message}`, 'error');
             
             // Still reset buttons in case of error

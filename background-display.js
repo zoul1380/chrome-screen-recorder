@@ -173,18 +173,44 @@ async function downloadRecording(arrayBuffer) {
 
 async function downloadRecordingFromBlobUrl(blobUrl, size) {
   try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/[:.]/g, '-')
+      .replace('T', '_')
+      .split('.')[0]; // Remove milliseconds
     const filename = `screen-recording-${timestamp}.webm`;
 
-    const downloadId = await chrome.downloads.download({
-      url: blobUrl,
-      filename: filename,
-      saveAs: true
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Starting download: ${filename}, size: ${size} bytes`
     });
 
+    // Try without saveAs first to see if download works
+    const downloadId = await chrome.downloads.download({
+      url: blobUrl,
+      filename: filename
+      // Temporarily removed saveAs: true to test
+    });
+
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Download initiated with ID: ${downloadId}`
+    });
+
+    // Show notification that download started
+    showNotification(`📥 Download started: ${filename}`);
+
+    // Clean up the blob URL after download starts
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 2000); // Increased timeout
+
   } catch (error) {
-    console.error("Download from Blob URL failed:", error);
-    showNotification(`Download failed: ${error.message}`);
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Download failed: ${error.message}`
+    });
+    showNotification(`❌ Download failed: ${error.message}`);
   }
 }
 
@@ -200,10 +226,14 @@ function arrayBufferToBase64(buffer) {
 function showNotification(message) {
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: 'icon.png',
+    iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', // 1x1 transparent pixel
     title: 'Screen Recorder',
     message: message
-  }).catch(() => {
-    // Fallback if notifications fail
+  }).catch((error) => {
+    // Fallback if notifications fail - send debug message instead
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Notification: ${message}`
+    });
   });
 }
