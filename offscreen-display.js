@@ -34,6 +34,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function startDisplayMedia() {
   try {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Starting display media capture with watermark settings: ${JSON.stringify(watermarkSettings)}`
+    });
+    
     // Request screen sharing - this will show the permission dialog
     stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
@@ -51,11 +56,29 @@ async function startDisplayMedia() {
       throw new Error("No video tracks available in stream");
     }
 
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Original stream created with ${videoTracks.length} video tracks`
+    });
+
     let recordingStream = stream;
 
     // Apply watermark if enabled
     if (watermarkSettings && watermarkSettings.enabled) {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Applying watermark to stream...'
+      });
       recordingStream = await applyWatermark(stream);
+      
+      if (!recordingStream || recordingStream.getVideoTracks().length === 0) {
+        throw new Error("Failed to create watermarked stream");
+      }
+      
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `Watermarked stream created with ${recordingStream.getVideoTracks().length} video tracks`
+      });
     }
 
     // Setup MediaRecorder
@@ -69,32 +92,62 @@ async function startDisplayMedia() {
     // Fallback if codec not supported
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
       options.mimeType = 'video/webm';
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Using fallback mimeType: video/webm'
+      });
     }
 
     mediaRecorder = new MediaRecorder(recordingStream, options);
+
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `MediaRecorder created with mimeType: ${options.mimeType}`
+    });
 
     // Handle data collection
     mediaRecorder.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) {
         recordedChunks.push(event.data);
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Data chunk received: ${event.data.size} bytes, total chunks: ${recordedChunks.length}`
+        });
       }
     };
 
     // Handle stop event
     mediaRecorder.onstop = () => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `Recording stopped, processing ${recordedChunks.length} chunks`
+      });
       handleRecordingComplete();
     };
 
     // Handle errors
     mediaRecorder.onerror = (event) => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: `MediaRecorder error: ${event.error}`
+      });
       throw new Error(`MediaRecorder error: ${event.error}`);
     };
 
     // Start recording with data collection every 100ms
     mediaRecorder.start(100);
+    
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: 'MediaRecorder started'
+    });
 
     // Listen for user stopping the screen share
     stream.getVideoTracks()[0].addEventListener('ended', () => {
+      chrome.runtime.sendMessage({
+        action: 'debug-info',
+        info: 'Screen share ended by user'
+      });
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
@@ -103,6 +156,11 @@ async function startDisplayMedia() {
     return { success: true };
 
   } catch (error) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `startDisplayMedia error: ${error.message}`
+    });
+    
     // Clean up on error
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -183,6 +241,11 @@ async function applyWatermark(originalStream) {
     const videoTrack = originalStream.getVideoTracks()[0];
     const settings = videoTrack.getSettings();
     
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Applying watermark - canvas size: ${settings.width}x${settings.height}`
+    });
+    
     // Create canvas for compositing
     canvas = document.createElement('canvas');
     canvas.width = settings.width || 1920;
@@ -194,20 +257,63 @@ async function applyWatermark(originalStream) {
     video.srcObject = originalStream;
     video.autoplay = true;
     video.muted = true;
+    video.playsInline = true;
     
-    // Wait for video to be ready
-    await new Promise((resolve) => {
-      video.addEventListener('loadedmetadata', resolve);
+    // Add video to document to ensure it plays properly
+    video.style.position = 'absolute';
+    video.style.top = '-9999px';
+    video.style.left = '-9999px';
+    document.body.appendChild(video);
+    
+    // Wait for video to be ready and actually playing
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Video failed to load within 10 seconds'));
+      }, 10000);
+      
+      video.addEventListener('loadedmetadata', () => {
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Video metadata loaded - dimensions: ${video.videoWidth}x${video.videoHeight}`
+        });
+      });
+      
+      video.addEventListener('canplay', () => {
+        clearTimeout(timeout);
+        chrome.runtime.sendMessage({
+          action: 'debug-info',
+          info: `Video can play - starting watermark composition`
+        });
+        resolve();
+      });
+      
+      video.addEventListener('error', (e) => {
+        clearTimeout(timeout);
+        reject(new Error(`Video error: ${e.message}`));
+      });
     });
+    
+    // Ensure video is actually playing
+    await video.play();
+    
+    let frameCount = 0;
     
     // Draw frames with watermark
     const drawFrame = () => {
-      if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+      if (video.readyState >= 2 && !video.paused && !video.ended) {
         // Draw original video frame
         canvasCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         // Draw watermark
         drawWatermark();
+        
+        frameCount++;
+        if (frameCount % 30 === 0) { // Log every 30 frames (roughly every second)
+          chrome.runtime.sendMessage({
+            action: 'debug-info',
+            info: `Watermark frames rendered: ${frameCount}`
+          });
+        }
       }
       
       if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -218,12 +324,21 @@ async function applyWatermark(originalStream) {
     // Start drawing loop
     requestAnimationFrame(drawFrame);
     
-    // Get stream from canvas
+    // Get stream from canvas with proper frame rate
     compositeStream = canvas.captureStream(30);
+    
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Canvas stream created with ${compositeStream.getVideoTracks().length} video tracks`
+    });
     
     return compositeStream;
     
   } catch (error) {
+    chrome.runtime.sendMessage({
+      action: 'debug-info',
+      info: `Watermark application failed: ${error.message}`
+    });
     throw new Error(`Failed to apply watermark: ${error.message}`);
   }
 }
@@ -344,6 +459,16 @@ function getWatermarkPosition(position) {
 }
 
 function cleanupWatermark() {
+  // Remove video element from DOM if it exists
+  const videos = document.querySelectorAll('video[style*="-9999px"]');
+  videos.forEach(video => {
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+      video.srcObject = null;
+    }
+    video.remove();
+  });
+  
   if (compositeStream) {
     compositeStream.getTracks().forEach(track => track.stop());
     compositeStream = null;
@@ -356,4 +481,9 @@ function cleanupWatermark() {
   
   watermarkSettings = null;
   watermarkImageData = null;
+  
+  chrome.runtime.sendMessage({
+    action: 'debug-info',
+    info: 'Watermark resources cleaned up'
+  });
 }
