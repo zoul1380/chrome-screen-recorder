@@ -1,0 +1,37 @@
+{
+  "instructions": [
+    "This is a Chrome Extension (Manifest V3) for screen recording with WebM output.",
+    "ALWAYS create a new branch for any development work - NEVER commit directly to main.",
+    "NO console.log statements in production code - use chrome.runtime.sendMessage for debug info.",
+    "Use getDisplayMedia API with offscreen document architecture for screen capture.",
+    "Handle large file transfers with Blob URLs, not direct message passing.",
+    "Always validate streams, handle errors, and clean up resources properly.",
+    "Follow the message passing patterns defined in the project documentation.",
+    "Test recording functionality thoroughly before committing changes."
+  ],
+  "rules": [
+    {
+      "pattern": "console.log",
+      "message": "❌ Remove console.log statements from production code. Use chrome.runtime.sendMessage for debug info instead."
+    },
+    {
+      "pattern": "git commit.*main",
+      "message": "❌ Never commit directly to main branch. Create a feature/fix branch first."
+    },
+    {
+      "pattern": "chrome.runtime.sendMessage.*data.*ArrayBuffer",
+      "message": "❌ Don't send large ArrayBuffer data via messages. Use Blob URLs instead."
+    }
+  ],
+  "context": {
+    "codebase": "chrome-extension-manifest-v3",
+    "architecture": "service-worker-offscreen-document",
+    "apis": ["getDisplayMedia", "MediaRecorder", "chrome.runtime", "chrome.offscreen", "chrome.downloads"],
+    "constraints": [
+      "no-console-log-in-production",
+      "branch-first-development",
+      "blob-url-for-large-files",
+      "proper-error-handling"
+    ]
+  }
+}

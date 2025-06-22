@@ -1,0 +1,89 @@
+name: Chrome Extension CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Validate manifest.json
+      run: |
+        if ! cat manifest.json | jq empty; then
+          echo "❌ manifest.json is not valid JSON"
+          exit 1
+        fi
+        echo "✅ manifest.json is valid"
+    
+    - name: Check for console.log statements
+      run: |
+        if grep -r "console\.log" --include="*.js" --exclude-dir=backup .; then
+          echo "❌ console.log statements found in production code"
+          echo "Remove console.log statements and use chrome.runtime.sendMessage for debug info"
+          exit 1
+        fi
+        echo "✅ No console.log statements found"
+    
+    - name: Validate file structure
+      run: |
+        required_files=(
+          "manifest.json"
+          "background-display.js"
+          "offscreen-display.js"
+          "offscreen-display.html"
+          "popup.js"
+          "popup.html"
+          "README.md"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Required file missing: $file"
+            exit 1
+          fi
+        done
+        echo "✅ All required files present"
+    
+    - name: Check branch naming
+      if: github.event_name == 'pull_request'
+      run: |
+        branch_name="${{ github.head_ref }}"
+        if [[ ! "$branch_name" =~ ^(feature|fix|improve)/.+ ]]; then
+          echo "❌ Branch name should follow pattern: feature/description, fix/description, or improve/description"
+          echo "Current branch: $branch_name"
+          exit 1
+        fi
+        echo "✅ Branch name follows convention: $branch_name"
+
+  package:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Create extension package
+      run: |
+        # Create a clean package without backup directory
+        mkdir -p dist
+        cp -r . dist/extension
+        rm -rf dist/extension/.git
+        rm -rf dist/extension/backup
+        rm -rf dist/extension/.github
+        rm -f dist/extension/.copilotrc.json
+        
+        cd dist/extension
+        zip -r ../chrome-screen-recorder.zip .
+        
+    - name: Upload extension package
+      uses: actions/upload-artifact@v3
+      with:
+        name: chrome-extension-package
+        path: dist/chrome-screen-recorder.zip
