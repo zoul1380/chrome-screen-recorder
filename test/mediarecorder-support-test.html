@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MediaRecorder Support Test</title>
+</head>
+<body>
+    <h1>MediaRecorder Format Support Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        function testMediaRecorderSupport() {
+            const formats = [
+                'video/webm',
+                'video/webm;codecs=vp8',
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=h264',
+                'video/mp4',
+                'video/mp4;codecs=h264',
+                'video/mp4;codecs=avc1.42E01E',
+                'image/gif'
+            ];
+            
+            const resultsDiv = document.getElementById('results');
+            let html = '<h3>MediaRecorder Support Results:</h3><ul>';
+            
+            formats.forEach(format => {
+                const isSupported = MediaRecorder.isTypeSupported(format);
+                const status = isSupported ? '✅ Supported' : '❌ Not supported';
+                html += `<li><strong>${format}</strong>: ${status}</li>`;
+                console.log(`${format}: ${isSupported}`);
+            });
+            
+            html += '</ul>';
+            resultsDiv.innerHTML = html;
+            
+            // Also test what the default type is
+            try {
+                const testRecorder = new MediaRecorder(new MediaStream());
+                html += `<p><strong>Default mimeType:</strong> ${testRecorder.mimeType || 'Not specified'}</p>`;
+                console.log('Default mimeType:', testRecorder.mimeType);
+            } catch (e) {
+                console.log('Could not create test recorder:', e);
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        window.onload = testMediaRecorderSupport;
+    </script>
+</body>
+</html>

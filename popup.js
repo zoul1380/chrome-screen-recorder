@@ -1,10 +1,11 @@
 // Popup script for WebP & GIF Page Recorder extension
 
-document.addEventListener('DOMContentLoaded', function() {
-    const startBtn = document.getElementById('startBtn');
+document.addEventListener('DOMContentLoaded', function() {    const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const statusDiv = document.getElementById('status');
     const formatRadios = document.querySelectorAll('input[name="format"]');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
     
     // Check initial status when popup opens
     checkRecordingStatus();
@@ -14,12 +15,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const selected = document.querySelector('input[name="format"]:checked');
         return selected ? selected.value : 'webm';
     }
-    
-    // Update status display
+      // Update status display
     function updateStatus(message, type = 'info') {
         statusDiv.textContent = message;
         statusDiv.className = `status ${type}`;
-
+        
+        // Show/hide progress bar based on type
+        if (type === 'processing') {
+            progressContainer.style.display = 'block';
+        } else {
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+        }
+    }
+    
+    // Update progress bar
+    function updateProgress(percentage) {
+        if (progressContainer.style.display === 'block') {
+            progressFill.style.width = percentage + '%';
+        }
     }
     
     // Update button states
@@ -57,15 +71,16 @@ document.addEventListener('DOMContentLoaded', function() {
             updateButtons(false);
         }
     }
-    
-    // Start recording
+      // Start recording
     startBtn.addEventListener('click', async function() {
         try {
+            const format = getSelectedFormat();
             updateStatus('Starting recording...', 'processing');
 
             
             const response = await chrome.runtime.sendMessage({
-                action: 'start-recording'
+                action: 'start-recording',
+                format: format
             });
             
 
@@ -113,12 +128,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Still reset buttons in case of error
             updateButtons(false);
         }
-    });
-    
-    // Listen for messages from background script
+    });    // Listen for messages from background script
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         if (message.action === 'RECORDING_STATUS') {
-            updateStatus(message.status, message.type || 'info');
+            let statusText = message.status;
+            updateStatus(statusText, message.type || 'info');
+            
+            // Update progress if available
+            if (message.progress !== undefined) {
+                updateProgress(message.progress);
+            }
             
             if (message.finished) {
                 updateButtons(false);

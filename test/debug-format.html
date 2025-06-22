@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Format Debug Test</title>
+</head>
+<body>
+    <h1>Format Conversion Debug</h1>
+    <p>Check the console for debugging messages about format handling.</p>
+    
+    <div>
+        <h3>Test Format Functions</h3>
+        <button onclick="testGetFileExtension()">Test getFileExtension</button>
+        <button onclick="testGetMimeType()">Test getMimeType</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        // Copy the functions from background-display.js for testing
+        function getFileExtension(format) {
+            switch (format) {
+                case 'mp4': return 'mp4';
+                case 'gif': return 'gif';
+                case 'webm': return 'webm';
+                default: return 'webm';
+            }
+        }
+
+        function getMimeType(format) {
+            switch (format) {
+                case 'mp4': return 'video/mp4';
+                case 'gif': return 'image/gif';
+                case 'webm': return 'video/webm';
+                default: return 'video/webm';
+            }
+        }
+        
+        function testGetFileExtension() {
+            const formats = ['webm', 'mp4', 'gif', 'unknown'];
+            const results = formats.map(format => {
+                return `${format} -> ${getFileExtension(format)}`;
+            });
+            console.log('getFileExtension tests:', results);
+            document.getElementById('results').innerHTML += '<p>getFileExtension: ' + results.join(', ') + '</p>';
+        }
+        
+        function testGetMimeType() {
+            const formats = ['webm', 'mp4', 'gif', 'unknown'];
+            const results = formats.map(format => {
+                return `${format} -> ${getMimeType(format)}`;
+            });
+            console.log('getMimeType tests:', results);
+            document.getElementById('results').innerHTML += '<p>getMimeType: ' + results.join(', ') + '</p>';
+        }
+        
+        // Simulate format conversion debug
+        function simulateFormatFlow() {
+            console.log('=== Format Flow Simulation ===');
+            
+            const testFormat = 'mp4';
+            console.log('1. User selects format:', testFormat);
+            console.log('2. getFileExtension(' + testFormat + ') =', getFileExtension(testFormat));
+            console.log('3. getMimeType(' + testFormat + ') =', getMimeType(testFormat));
+            
+            const filename = `screen-recording-2025-06-22.${getFileExtension(testFormat)}`;
+            console.log('4. Generated filename:', filename);
+            
+            const mimeType = getMimeType(testFormat);
+            const dataUrl = `data:${mimeType};base64,test-data`;
+            console.log('5. Generated data URL prefix:', dataUrl.substring(0, 50) + '...');
+        }
+        
+        // Run simulation on load
+        window.onload = function() {
+            simulateFormatFlow();
+        };
+    </script>
+</body>
+</html>
